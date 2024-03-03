@@ -1,3 +1,7 @@
+*.cert
+*.key
+*.wav
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

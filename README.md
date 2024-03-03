@@ -52,3 +52,35 @@ We need a automatic speech recognition model with low latency inference. Try the
 - Add ability to create new macros (and save them)
 - Load macros from json file rather than hard coded
 - Add drop down for all available macros
+----------------------------------------------------------------
+For transcription with macro application: 
+- add non-macro keyword formatting (e.g. bulleted list)
+- add fuzzywuzzy and st_audiorec to docker image
+- add dockerfile
+- add instructions for ngrok hosting
+- save the raw transcriptions along with the final (macro inserted) transcription
+- add ability to edit the final transcriptions, save the raw-final pair for training data
+    - we should save the asr model, timestamp, raw, final, id, raw audio with id
+
+## Streamlit service
+
+When running the streamlit service on a VM, using the microphone of the host machine you may get a "Component Error
+Cannot read properties of null (reading 'getAudioTracks')". This is likely related to the browser's security settings and the fact that streamlit runs on http.
+
+Here is how to solve the issue:
+
+1. Open a terminal on your Ubuntu VM.
+2. Run the following commands to generate a private key:
+```bash
+openssl genrsa 2048 > host.key
+chmod 400 host.key
+```
+3. Run the following command to generate a self-signed certificate. You'll be prompted for some information - you can just hit Enter to accept the defaults:
+```bash
+openssl req -new -x509 -nodes -sha256 -days 365 -key host.key -out host.cert
+```
+4. Run your Streamlit app over HTTPS with the following command:
+```bash
+streamlit run app.py --server.sslCertFile host.cert --server.sslKeyFile=host.key
+```
+Now, you should be able to access your Streamlit app over HTTPS, and your browser should allow access to the microphone. Note that because the certificate is self-signed, your browser will warn you that the connection is not secure. You'll need to manually accept the risk and proceed to the site.
