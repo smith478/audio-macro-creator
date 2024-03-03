@@ -1,5 +1,6 @@
 from fuzzywuzzy import fuzz, process
 import io
+import json
 import numpy as np
 import scipy.io.wavfile as wavfile
 from scipy.signal import resample
@@ -7,6 +8,7 @@ import soundfile as sf
 import streamlit as st
 from st_audiorec import st_audiorec
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
+from word2number import w2n
 
 st.set_page_config(layout='wide')
 
@@ -27,18 +29,28 @@ def load_processor():
 model = load_model()
 processor = load_processor()
 
-MACROS = {
-    "enterocolitis": "No evidence of a mechanical obstruction. The appearance of the gastrointestinal structures is compatible with enterocolitis. Consider testing for infectious causes in addition to medical management, with fasted abdominal ultrasound or repaeat abdominal radioraphs if clinical signs persist.",
-    "open email": "Opening email application...",
-    "start meeting": "Starting the meeting...",
-    # Define more macros here
-}
+with open('macros.json', 'r') as f:
+    MACROS = json.load(f)
 
 def main():
     global TARGET_SAMPLE_RATE, model, processor, MACROS
 
     st.title('Audio-based Macro Creator')
     st.write('This app uses the OpenAI Whisper model to generate a macro from an audio recording.')
+
+    # Add a dropdown in the sidebar that shows all the available macros
+    st.sidebar.selectbox('Available Macros', list(MACROS.keys()))
+
+    # Add text input fields in the sidebar for the user to add new macros
+    new_macro_key = st.sidebar.text_input('New Macro Key')
+    new_macro_value = st.sidebar.text_input('New Macro Value')
+
+    # Write the new macro to macros.json when the user clicks a button
+    if st.sidebar.button('Add New Macro'):
+        if new_macro_key and new_macro_value:
+            MACROS[new_macro_key] = new_macro_value
+            with open('macros.json', 'w') as f:
+                json.dump(MACROS, f)
 
     wav_audio_data = st_audiorec()
 
@@ -52,7 +64,7 @@ def main():
 
         st.audio(wav_audio_data, format='audio/wav')
 
-        samples_per_chunk = int(loaded_sample_rate * 30)
+        samples_per_chunk = int(TARGET_SAMPLE_RATE * 30)  # Use TARGET_SAMPLE_RATE instead of loaded_sample_rate
         chunks = np.array_split(resampled_audio_data, np.ceil(len(resampled_audio_data) / samples_per_chunk))
 
         transcriptions = []
@@ -67,31 +79,89 @@ def main():
         st.write(f"Raw Transcription: {transcription}")
 
         if transcription:
-            words = transcription.lower().split()
+            # Define the phrases to replace and their replacements
+            replace_phrases = {
+                "period": ".",
+                "new line": "  \n",
+                "newline": "  \n",
+                "slash": "/",
+                "comma": ",",
+                "open paren": "(",
+                "closed paren": ")"
+            }
+
+            lines = transcription.split('\n')
             final_transcription = []
             skip = 0
 
-            for i in range(len(words)):
-                if skip > 0:
-                    skip -= 1
-                    continue
+            for line in lines:
+                words = line.split()
+                final_line = []
 
-                if i < len(words) - 1 and fuzz.ratio(words[i], "insert") > 80:
-                    if words[i+1].startswith("macro"):
-                        macro_key = words[i+1][5:]  # take the rest of the word as the macro key
-                        best_match = process.extractOne(macro_key, MACROS.keys())
+                for i in range(len(words)):
+                    word = words[i]  # Save the original word
+                    word_lower = word.lower()  # Convert the word to lowercase for comparison
+
+                    if skip > 0:
+                        skip -= 1
+                        continue
+
+                    # Fuzzy match for replace phrases
+                    best_match = process.extractOne(word_lower, replace_phrases.keys())
+                    if best_match and best_match[1] > 80:  # if the match confidence is above 80
+                        final_line.append(replace_phrases.get(best_match[0]))
+                        continue
+
+                    # Check if the word is a number followed by "period"
+                    if i < len(words) - 2 and (words[i+1].lower() == "period" or words[i+1] == "." or words[i+1].lower() == "period."):
+                        try:
+                            number = w2n.word_to_num(word_lower.replace(",", ""))
+                            final_line.append("\n" + str(number) + ".")
+                            skip = 2  # skip the next two words ("period" and the number)
+                            continue
+                        except ValueError:
+                            pass  # not a number, continue to the next check
+                    elif i < len(words) - 1 and (words[i+1].lower() == "period" or words[i+1] == "." or words[i+1].lower() == "period."):
+                        try:
+                            number = w2n.word_to_num(word_lower.replace(",", ""))
+                            final_line.append("\n" + str(number) + ".")
+                            skip = 1  # skip the next word ("period")
+                            continue
+                        except ValueError:
+                            pass  # not a number, continue to the next check
+
+                    if i < len(words) - 2 and fuzz.ratio(word_lower, "insert") > 80 and words[i+1].lower() == "macro":
+                        macro_key = words[i+2]  # take the next word as the macro key
+                        best_match = process.extractOne(macro_key.lower(), MACROS.keys())  # Convert to lowercase for comparison
+
+                        # Concatenate the next two words and check if the concatenated string matches any macro
+                        concatenated_macro_key = words[i+2] + words[i+3] if i < len(words) - 3 else None
+                        concatenated_best_match = process.extractOne(concatenated_macro_key.lower(), MACROS.keys()) if concatenated_macro_key else None
+
                         if best_match and best_match[1] > 80:  # if the match confidence is above 80
-                            final_transcription.append(MACROS.get(best_match[0]))
-                            skip = 1  # skip the next word (macro_key)
+                            final_line.append(MACROS.get(best_match[0]))
+                            skip = 2  # skip the next two words ("macro" and macro_key)
+                        elif concatenated_best_match and concatenated_best_match[1] > 80:  # if the match confidence is above 80
+                            final_line.append(MACROS.get(concatenated_best_match[0]))
+                            skip = 3  # skip the next three words ("macro", word1, and word2)
                         else:
-                            final_transcription.append(words[i])  # if no match found, keep the original word
+                            final_line.append(word)  # Use the original word
                     else:
-                        final_transcription.append(words[i])
-                else:
-                    final_transcription.append(words[i])
+                        final_line.append(word)  # Use the original word
 
-            final_transcription = ' '.join(final_transcription)
-            st.write(f"Final Transcription (with macros): {final_transcription}")
+                final_transcription.append(' '.join(final_line))
+
+            final_transcription = '  \n'.join(final_transcription)
+            final_transcription = final_transcription.replace(" .", ".")  # remove space before periods
+            final_transcription = final_transcription.replace(" /", "/")  # remove space before slashes
+            final_transcription = final_transcription.replace("/ ", "/")  # remove space after slashes
+            final_transcription = final_transcription.replace(" ,", ",")  # remove space before slashes
+            final_transcription = final_transcription.replace(".,", ".")
+            final_transcription = final_transcription.replace(",.", ".")
+            final_transcription = final_transcription.replace("..", ".")
+            final_transcription = final_transcription.replace("( ", "(")  # remove space after "("
+            final_transcription = final_transcription.replace(" )", ")")  # remove space before ")"
+            st.markdown(f"Final Transcription (with macros):\n\n{final_transcription}")
 
 if __name__ == "__main__":
     main()

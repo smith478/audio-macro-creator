@@ -48,6 +48,7 @@ We need a automatic speech recognition model with low latency inference. Try the
 - distil-whisper/distil-large-v2
 - openai/whisper-large-v3
 - facebook/wav2vec2-base-960h
+- save model to disk 
 ----------------------------------------------------------------
 - Add ability to create new macros (and save them)
 - Load macros from json file rather than hard coded
@@ -55,7 +56,7 @@ We need a automatic speech recognition model with low latency inference. Try the
 ----------------------------------------------------------------
 For transcription with macro application: 
 - add non-macro keyword formatting (e.g. bulleted list)
-- add fuzzywuzzy and st_audiorec to docker image
+- add fuzzywuzzy, st_audiorec, and word2number to docker image
 - add dockerfile
 - add instructions for ngrok hosting
 - save the raw transcriptions along with the final (macro inserted) transcription
