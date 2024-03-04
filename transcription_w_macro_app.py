@@ -1,13 +1,16 @@
+from datetime import datetime
 from fuzzywuzzy import fuzz, process
 import io
 import json
 import numpy as np
+import pandas as pd
 import scipy.io.wavfile as wavfile
 from scipy.signal import resample
 import soundfile as sf
 import streamlit as st
 from st_audiorec import st_audiorec
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
+import uuid
 from word2number import w2n
 
 st.set_page_config(layout='wide')
@@ -17,7 +20,7 @@ MODEL_PATH = 'openai/whisper-large-v3'
 
 @st.cache_resource 
 def load_model():
-    model = WhisperForConditionalGeneration.from_pretrained(MODEL_PATH)
+    model = WhisperForConditionalGeneration.from_pretrained(f'./models/{MODEL_PATH}')
     model.config.forced_decoder_ids = None
     return model
 
@@ -162,6 +165,29 @@ def main():
             final_transcription = final_transcription.replace("( ", "(")  # remove space after "("
             final_transcription = final_transcription.replace(" )", ")")  # remove space before ")"
             st.markdown(f"Final Transcription (with macros):\n\n{final_transcription}")
+
+            # Add a text area for the user to edit the final transcription
+            edited_transcription = st.text_area("Edit Transcription", final_transcription)
+
+            # Add a save button
+            if st.button('Save Transcription'):
+                # Generate a UUID
+                id = uuid.uuid4()
+
+                # Save the transcriptions, model, and timestamp to a CSV file
+                df = pd.DataFrame({
+                    'UUID': [str(id)],
+                    'Raw Transcription': [transcription],
+                    'Final Transcription': [final_transcription],
+                    'User Edited Transcription': [edited_transcription],
+                    'Model': [MODEL_PATH],
+                    'Timestamp': [datetime.now()]
+                })
+                df.to_csv('./artifacts/transcriptions.csv', mode='a', header=False)
+
+                # Save the audio file with a filename that matches the UUID
+                with open(f'./artifacts/audio/{id}.wav', 'wb') as f:
+                    f.write(wav_audio_data)
 
 if __name__ == "__main__":
     main()

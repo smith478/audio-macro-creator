@@ -1,6 +1,9 @@
 *.cert
 *.key
 *.wav
+artifacts/*
+models/*
+processors/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

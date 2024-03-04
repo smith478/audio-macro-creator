@@ -48,6 +48,7 @@ We need a automatic speech recognition model with low latency inference. Try the
 - distil-whisper/distil-large-v2
 - openai/whisper-large-v3
 - facebook/wav2vec2-base-960h
+- srujan00123/wav2vec2-large-medical-speed
 - save model to disk 
 ----------------------------------------------------------------
 - Add ability to create new macros (and save them)
