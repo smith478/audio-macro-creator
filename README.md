@@ -51,12 +51,9 @@ We need a automatic speech recognition model with low latency inference. Try the
 - srujan00123/wav2vec2-large-medical-speed
 - save model to disk 
 ----------------------------------------------------------------
-- Add ability to create new macros (and save them)
-- Load macros from json file rather than hard coded
-- Add drop down for all available macros
+- Use session states to allow saving without needing to rerun the entire script
 ----------------------------------------------------------------
 For transcription with macro application: 
-- add non-macro keyword formatting (e.g. bulleted list)
 - add fuzzywuzzy, st_audiorec, and word2number to docker image
 - add dockerfile
 - add instructions for ngrok hosting
@@ -83,6 +80,6 @@ openssl req -new -x509 -nodes -sha256 -days 365 -key host.key -out host.cert
 ```
 4. Run your Streamlit app over HTTPS with the following command:
 ```bash
-streamlit run app.py --server.sslCertFile host.cert --server.sslKeyFile=host.key
+streamlit run transcription_w_macro_app.py --server.sslCertFile host.cert --server.sslKeyFile=host.key
 ```
 Now, you should be able to access your Streamlit app over HTTPS, and your browser should allow access to the microphone. Note that because the certificate is self-signed, your browser will warn you that the connection is not secure. You'll need to manually accept the risk and proceed to the site.
