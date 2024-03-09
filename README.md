@@ -45,7 +45,7 @@ localhost:8501
 ### Create endpoint with ngrok
 Once the streamlit service is up and running 
 ```
-./ngrok http 8501
+ngrok http https://localhost:8501
 ```
 
 ## TODO
@@ -59,6 +59,8 @@ We need a automatic speech recognition model with low latency inference. Try the
 ----------------------------------------------------------------
 - Use session states to allow saving without needing to rerun the entire script
 - If macro key phrase is longer than 4 words, just check that the first 4 words match. Or throw an error if there are any macros with more than 4 words.
+- Add notebooks to experiment with models
+- Add dropdown for different model options
 ----------------------------------------------------------------
 For transcription with macro application: 
 - add fuzzywuzzy, st_audiorec, and word2number to docker image

@@ -99,7 +99,11 @@ def process_transcription(transcription, MACROS):
         "slash": "/",
         "comma": ",",
         "open paren": "(",
-        "closed paren": ")"
+        "closed paren": ")",
+        "close paren": ")",
+        "open paren.": "(",
+        "closed paren.": ")",
+        "close paren.": ")",
     }
 
     lines = transcription.split('\n')
@@ -119,10 +123,17 @@ def process_transcription(transcription, MACROS):
                 continue
 
             # Fuzzy match for replace phrases
-            best_match = process.extractOne(word_lower, replace_phrases.keys())
-            if best_match and best_match[1] > 80:  # if the match confidence is above 80
+            phrase = ' '.join(words[i:i+2]).lower()  # Join the current word and the next word into a phrase
+            best_match = process.extractOne(phrase, replace_phrases.keys())
+            if best_match and best_match[1] > 95:  # if the match confidence is above 95
                 final_line.append(replace_phrases.get(best_match[0]))
+                skip = 1  # Skip the next word
                 continue
+            else:
+                best_match = process.extractOne(word_lower, replace_phrases.keys())
+                if best_match and best_match[1] > 95:  # if the match confidence is above 95
+                    final_line.append(replace_phrases.get(best_match[0]))
+                    continue
 
             # Check if the word is a number followed by "period"
             if i < len(words) - 2 and (words[i+1].lower() == "period" or words[i+1] == "." or words[i+1].lower() == "period." or words[i+1].lower() == "period,"):
@@ -164,47 +175,65 @@ def process_transcription(transcription, MACROS):
 
     return final_transcription
 
+def update_inference_required():
+    st.session_state['inference_required'] = True
+
 def main():
     global TARGET_SAMPLE_RATE, model, processor, MACROS
 
     st.title('Audio Transcription with Macros')
     st.write('This app uses the OpenAI Whisper model to generate transcriptions with customizable macros.')
 
+    if 'inference_required' not in st.session_state:
+        st.session_state['inference_required'] = True
+    if 'previous_audio_data' not in st.session_state:
+        st.session_state['previous_audio_data'] = None
+    if 'transcription' not in st.session_state:
+        st.session_state['transcription'] = ''
+
     add_macros_sidebar(MACROS)
 
-    wav_audio_data = st_audiorec()
+    current_audio_data = st_audiorec()
+    if current_audio_data is not None and current_audio_data != st.session_state['previous_audio_data']:
+        st.session_state['inference_required'] = True
+        st.session_state['previous_audio_data'] = current_audio_data
+        wav_audio_data = current_audio_data
+    else:
+        wav_audio_data = st.session_state['previous_audio_data']
 
-    if wav_audio_data is not None:
+    if wav_audio_data is not None and st.session_state['inference_required']:
         resampled_audio_data, loaded_sample_rate = process_audio(wav_audio_data, TARGET_SAMPLE_RATE)
         transcription = transcribe_audio(resampled_audio_data, TARGET_SAMPLE_RATE, model, processor)
-        st.write(f"Raw Transcription: {transcription}")
+        st.session_state['inference_required'] = False
+        st.session_state['transcription'] = transcription
+    st.write(f"Raw Transcription: {st.session_state['transcription']}")
 
-        if transcription:
-            final_transcription = final_transcription = process_transcription(transcription, MACROS)
-            st.markdown(f"Final Transcription (with macros):\n\n{final_transcription}")
+    if st.session_state['transcription']:
+        final_transcription = process_transcription(st.session_state['transcription'], MACROS)
+        st.markdown(f"Final Transcription (with macros):\n\n{final_transcription}")
 
-            # Add a text area for the user to edit the final transcription
-            edited_transcription = st.text_area("Edit Transcription", final_transcription, height=500)
+        # Add a text area for the user to edit the final transcription
+        edited_transcription = st.text_area("Edit Transcription", final_transcription, height=500)
 
-            # Add a save button
-            if st.button('Save Transcription'):
-                # Generate a UUID
-                id = uuid.uuid4()
+        # Add a save button
+        if st.button('Save Transcription'):
+            # Generate a UUID
+            id = uuid.uuid4()
 
-                # Save the transcriptions, model, and timestamp to a CSV file
-                df = pd.DataFrame({
-                    'UUID': [str(id)],
-                    'Raw Transcription': [transcription],
-                    'Final Transcription': [final_transcription],
-                    'User Edited Transcription': [edited_transcription],
-                    'Model': [MODEL_PATH],
-                    'Timestamp': [datetime.now()]
-                })
-                df.to_csv('./artifacts/transcriptions.tsv', mode='a', header=False, sep='\t')
+            # Save the transcriptions, model, and timestamp to a CSV file
+            df = pd.DataFrame({
+                'UUID': [str(id)],
+                'Raw Transcription': [st.session_state['transcription']],
+                'Final Transcription': [final_transcription],
+                'User Edited Transcription': [edited_transcription],
+                'Model': [MODEL_PATH],
+                'Timestamp': [datetime.now()]
+            })
+            df.to_csv('./artifacts/transcriptions.tsv', mode='a', header=False, sep='\t')
 
-                # Save the audio file with a filename that matches the UUID
-                with open(f'./artifacts/audio/{id}.wav', 'wb') as f:
-                    f.write(wav_audio_data)
+            # Save the audio file with a filename that matches the UUID
+            with open(f'./artifacts/audio/{id}.wav', 'wb') as f:
+                f.write(wav_audio_data)
 
 if __name__ == "__main__":
     main()
