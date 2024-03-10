@@ -4,6 +4,8 @@
 artifacts/*
 models/*
 processors/*
+notebooks/models/*
+notebooks/processors/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

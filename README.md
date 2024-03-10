@@ -52,23 +52,30 @@ ngrok http https://localhost:8501
 
 We need a automatic speech recognition model with low latency inference. Try the following models:
 - distil-whisper/distil-large-v2
-- openai/whisper-large-v3
-- facebook/wav2vec2-base-960h
-- srujan00123/wav2vec2-large-medical-speed
-- save model to disk 
+- X openai/whisper-large-v3
+- X facebook/wav2vec2-base-960h
+- X srujan00123/wav2vec2-large-medical-speed
+- X save model to disk 
 ----------------------------------------------------------------
-- Use session states to allow saving without needing to rerun the entire script
+- Look into real-time transcription
+- Useful resources:
+    - https://huggingface.co/learn/audio-course/chapter7/voice-assistant#speech-transcription
+    - https://github.com/alesaccoia/VoiceStreamAI?tab=readme-ov-file
+    - https://github.com/SYSTRAN/faster-whisper
+    - https://github.com/gaborvecsei/whisper-live-transcription
+----------------------------------------------------------------
+- X Use session states to allow saving without needing to rerun the entire script
 - If macro key phrase is longer than 4 words, just check that the first 4 words match. Or throw an error if there are any macros with more than 4 words.
-- Add notebooks to experiment with models
+- X Add notebooks to experiment with models
 - Add dropdown for different model options
 ----------------------------------------------------------------
 For transcription with macro application: 
 - add fuzzywuzzy, st_audiorec, and word2number to docker image
 - add dockerfile
-- add instructions for ngrok hosting
-- save the raw transcriptions along with the final (macro inserted) transcription
-- add ability to edit the final transcriptions, save the raw-final pair for training data
-    - we should save the asr model, timestamp, raw, final, id, raw audio with id
+- X add instructions for ngrok hosting
+- X save the raw transcriptions along with the final (macro inserted) transcription
+- X add ability to edit the final transcriptions, save the raw-final pair for training data
+    - X we should save the asr model, timestamp, raw, final, id, raw audio with id
 
 ## Streamlit service
 
