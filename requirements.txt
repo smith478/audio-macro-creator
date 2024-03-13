@@ -22,3 +22,6 @@ pyannote-audio
 asyncio
 sentence-transformers
 faster-whisper
+fuzzywuzzy
+streamlit-audiorec
+word2number

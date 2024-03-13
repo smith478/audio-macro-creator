@@ -6,10 +6,10 @@ ENV CUDA_HOME=/opt/conda
 WORKDIR /audio-macro-creator
 
 # Declare API_KEY as a build argument
-ARG WB_API_KEY
+ARG HF_API_KEY
 
 # Set the API key as an environment variable
-ENV WB_API_KEY=${WB_API_KEY}
+ENV HF_API_KEY=${HF_API_KEY}
 
 # Copy the requirements.txt file from your local system to the Docker image
 COPY requirements.txt ./

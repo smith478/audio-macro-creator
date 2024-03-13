@@ -9,7 +9,7 @@ Tool to create audio to text macro.
 The docker image can be built using `./Dockerfile`. You can build it using the following command, run from the root directory
 
 ```bash
-docker build --build-arg WB_API_KEY=<your_api_key> . -f Dockerfile --rm -t audio-macro-creator:latest
+docker build --build-arg HF_API_KEY=<your_huggingface_api_key> . -f Dockerfile --rm -t audio-macro-creator:latest
 ```
 
 ### Run docker container
@@ -68,10 +68,11 @@ We need a automatic speech recognition model with low latency inference. Try the
 - If macro key phrase is longer than 4 words, just check that the first 4 words match. Or throw an error if there are any macros with more than 4 words.
 - X Add notebooks to experiment with models
 - Add dropdown for different model options
+- Create separate `findings` and `conclusions` sections so that, with enough data, we can try to infer the conclusions section from the findings. 
 ----------------------------------------------------------------
 For transcription with macro application: 
-- add fuzzywuzzy, st_audiorec, and word2number to docker image
-- add dockerfile
+- X add fuzzywuzzy, st_audiorec, and word2number to docker image
+- X add dockerfile
 - X add instructions for ngrok hosting
 - X save the raw transcriptions along with the final (macro inserted) transcription
 - X add ability to edit the final transcriptions, save the raw-final pair for training data
