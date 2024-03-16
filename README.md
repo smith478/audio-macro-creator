@@ -58,6 +58,8 @@ We need a automatic speech recognition model with low latency inference. Try the
 - X save model to disk 
 ----------------------------------------------------------------
 - Look into real-time transcription
+    - [VoiceStreamAI](https://github.com/alesaccoia/VoiceStreamAI)
+    - [whisper-live-transcription](https://github.com/smith478/whisper-live-transcription) 
 - Useful resources:
     - https://huggingface.co/learn/audio-course/chapter7/voice-assistant#speech-transcription
     - https://github.com/alesaccoia/VoiceStreamAI?tab=readme-ov-file
