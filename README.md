@@ -48,6 +48,9 @@ Once the streamlit service is up and running
 ngrok http https://localhost:8501
 ```
 
+## Testing
+Unit tests can be found in `/tests`. Please note that relative imports depend on the context in which you run your script. If you run `test_transcription_w_macro_app.py` as a script, Python will not be able to resolve the relative import. To avoid this, you should run your tests using the `-m` flag from the command line, like so: `python -m unittest tests/test_transcription_w_macro_app.py`. This will correctly set the context for the relative import. Since all the unit tests are in `/tests`, you can also use `python -m unittest discover -s tests`
+
 ## TODO
 
 We need a automatic speech recognition model with low latency inference. Try the following models:
