@@ -9,7 +9,7 @@ Tool to create audio to text macro.
 The docker image can be built using `./Dockerfile`. You can build it using the following command, run from the root directory
 
 ```bash
-docker build --build-arg HF_API_KEY=<your_huggingface_api_key> . -f Dockerfile --rm -t audio-macro-creator:latest
+sudo docker build --build-arg HF_API_KEY=<your_huggingface_api_key> . -f Dockerfile --rm -t audio-macro-creator:latest
 ```
 
 ### Run docker container
@@ -17,7 +17,7 @@ docker build --build-arg HF_API_KEY=<your_huggingface_api_key> . -f Dockerfile -
 First navigate to this repo on your local machine. Then run the container:
 
 ```bash
-docker run --gpus all --name audio-macro-creator -it --rm -p 8888:8888 -p 8501:8501 -p 8000:8000 --entrypoint /bin/bash -w /audio-macro-creator -v $(pwd):/audio-macro-creator audio-macro-creator:latest
+sudo docker run --gpus all --name audio-macro-creator -it --rm -p 8888:8888 -p 8501:8501 -p 8000:8000 --entrypoint /bin/bash -w /audio-macro-creator -v $(pwd):/audio-macro-creator audio-macro-creator:latest
 ```
 
 ### Run jupyter from the container
