@@ -105,3 +105,9 @@ openssl req -new -x509 -nodes -sha256 -days 365 -key host.key -out host.cert
 streamlit run transcription_w_macro_app.py --server.sslCertFile host.cert --server.sslKeyFile=host.key
 ```
 Now, you should be able to access your Streamlit app over HTTPS, and your browser should allow access to the microphone. Note that because the certificate is self-signed, your browser will warn you that the connection is not secure. You'll need to manually accept the risk and proceed to the site.
+
+## VoiceStreamAI
+
+One big downside of using the streamlit app above is the high latency of getting a transcription from an audio recording. A big source of that is the time it takes the streamlit app to process the audio. In addition we don't start transcribing the audio until the entire audio is recorded and processed. [VoiceStreamAI](https://github.com/alesaccoia/VoiceStreamAI) allows us to perform near real-time audio transcription, significantly reducing the latency in the streamlit app.
+
+Instructions to build/run the app can be found in `./VoiceStreamAI/README.md`. One thing to note about the VAD token referenced is that you will need to share your contact information with pyannote [here](https://huggingface.co/pyannote/segmentation), and then the token to use will be your huggingface token (see instructions under TL;DR [here](https://github.com/pyannote/pyannote-audio) for more details).
