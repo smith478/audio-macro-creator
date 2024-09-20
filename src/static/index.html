@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time ASR Macro App</title>
+</head>
+<body>
+    <h1>Real-time ASR Macro App</h1>
+    <button id="startButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+    <div id="output"></div>
+
+    <script>
+        const socket = new WebSocket('ws://localhost:8000/ws');
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('startButton').onclick = startRecording;
+        document.getElementById('stopButton').onclick = stopRecording;
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                        if (audioChunks.length > 5) {
+                            const audioBlob = new Blob(audioChunks);
+                            socket.send(audioBlob);
+                            audioChunks = [];
+                        }
+                    };
+                    mediaRecorder.start(1000);
+                    document.getElementById('startButton').disabled = true;
+                    document.getElementById('stopButton').disabled = false;
+                });
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+        }
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            document.getElementById('output').innerHTML += data.text + '<br>';
+        };
+    </script>
+</body>
+</html>
