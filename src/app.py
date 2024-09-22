@@ -13,11 +13,27 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Initialize AudioToTextRecorder
+# Shared variable to store the latest transcription
+latest_transcription = None
+
+def on_transcription(text):
+    global latest_transcription
+    logger.info(f"Transcribed text: {text}")
+    latest_transcription = text
+
+# Initialize AudioToTextRecorder with more parameters
 recorder = AudioToTextRecorder(
     model="tiny",
     language="en",
-    spinner=False
+    spinner=False,
+    enable_realtime_transcription=True,
+    on_realtime_transcription_stabilized=on_transcription,
+    silero_sensitivity=0.2,
+    webrtc_sensitivity=3,
+    post_speech_silence_duration=0.4,
+    min_length_of_recording=0.3,
+    min_gap_between_recordings=0.01,
+    realtime_processing_pause=0.01
 )
 
 @app.websocket("/ws")
@@ -33,12 +49,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info(f"Received action: {action}")
 
                 if action == 'start':
+                    logger.debug("About to start recorder")
                     recorder.start()
+                    logger.debug(f"Recorder started, is_recording: {recorder.is_recording}")
                     recording = True
                     await websocket.send_json({"status": "Recording started"})
                     logger.info("Recording started")
                 elif action == 'stop':
+                    logger.debug("About to stop recorder")
                     recorder.stop()
+                    logger.debug(f"Recorder stopped, is_recording: {recorder.is_recording}")
                     recording = False
                     await websocket.send_json({"status": "Recording stopped"})
                     logger.info("Recording stopped")
@@ -52,20 +72,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     logger.debug(f"Current energy: {recorder.audio.energy}")
 
                 # Check for new transcriptions
-                transcribed_text = recorder.text
-                logger.debug(f"Raw transcription output: {transcribed_text}")
-                if transcribed_text and isinstance(transcribed_text, str):
-                    logger.info(f"Transcribed text: {transcribed_text}")
+                global latest_transcription
+                if latest_transcription:
+                    logger.info(f"New transcription available: {latest_transcription}")
                     try:
-                        processed_text = process_text(transcribed_text, MACROS)
+                        processed_text = process_text(latest_transcription, MACROS)
                         logger.info(f"Processed text: {processed_text}")
+                        await websocket.send_json({"text": processed_text})
                     except Exception as e:
                         logger.error(f"Error in processing text: {e}", exc_info=True)
-                    logger.info(f"Processed text: {processed_text}")
-                    await websocket.send_json({"text": processed_text})
-                    recorder.clear()  # Clear the transcription buffer
+                    latest_transcription = None  # Reset after processing
                 else:
-                    logger.debug(f"No transcription available or invalid type: {type(transcribed_text)}")
+                    logger.debug("No new transcription available")
             
             await asyncio.sleep(0.1)  # Small delay to prevent busy-waiting
     except WebSocketDisconnect:

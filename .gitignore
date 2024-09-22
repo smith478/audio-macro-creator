@@ -1,3 +1,5 @@
+src/external/RealtimeSTT/
+
 *.cert
 *.key
 *.wav
