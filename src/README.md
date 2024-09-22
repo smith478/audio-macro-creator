@@ -36,5 +36,9 @@ Available models can be found in the documentation for `WhisperModel` in `faster
 ```bash
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
+Or for debugging:
+```bash
+uvicorn app:app --host 0.0.0.0 --port 8000 --log-level debug
+```
 3. Open a web browser
 4. Go to: `http://localhost:8000/static/index.html`

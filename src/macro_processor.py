@@ -1,4 +1,3 @@
-# Macro Processor (macro_processor.py)
 import json
 from fuzzywuzzy import process
 from word2number import w2n

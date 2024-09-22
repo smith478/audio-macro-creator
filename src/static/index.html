@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Macro App</title>
+    <style>
+        #debug { font-family: monospace; white-space: pre; max-height: 300px; overflow-y: auto; }
+    </style>
 </head>
 <body>
     <h1>Audio Macro App</h1>
     <button id="startButton">Start Recording</button>
     <button id="stopButton" disabled>Stop Recording</button>
+    <div id="status"></div>
     <div id="output"></div>
+    <h3>Debug Messages:</h3>
+    <div id="debug"></div>
 
     <script>
         const socket = new WebSocket('ws://localhost:8000/ws');
@@ -18,12 +24,30 @@
         document.getElementById('startButton').onclick = startRecording;
         document.getElementById('stopButton').onclick = stopRecording;
 
+        function updateStatus(message) {
+            document.getElementById('status').innerText = message;
+            console.log('Status:', message);
+        }
+
+        function appendOutput(message) {
+            document.getElementById('output').innerHTML += message + '<br>';
+            console.log('Output:', message);
+        }
+
+        function appendDebug(message) {
+            const debugElement = document.getElementById('debug');
+            debugElement.innerText += message + '\n';
+            debugElement.scrollTop = debugElement.scrollHeight;
+            console.log('Debug:', message);
+        }
+
         function startRecording() {
             if (!isRecording) {
                 socket.send(JSON.stringify({action: 'start'}));
                 isRecording = true;
                 document.getElementById('startButton').disabled = true;
                 document.getElementById('stopButton').disabled = false;
+                updateStatus('Recording started');
             }
         }
 
@@ -33,12 +57,35 @@
                 isRecording = false;
                 document.getElementById('startButton').disabled = false;
                 document.getElementById('stopButton').disabled = true;
+                updateStatus('Recording stopped');
             }
         }
 
+        socket.onopen = function(event) {
+            updateStatus('Connected to server');
+        };
+
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            document.getElementById('output').innerHTML += data.text + '<br>';
+            console.log('Received data:', data);
+            if (data.status) {
+                updateStatus(data.status);
+            }
+            if (data.text) {
+                appendOutput(data.text);
+            }
+            appendDebug(JSON.stringify(data, null, 2));
+        };
+
+        socket.onerror = function(error) {
+            console.error(`WebSocket Error: ${error}`);
+            updateStatus('WebSocket Error');
+            appendDebug(`WebSocket Error: ${error}`);
+        };
+
+        socket.onclose = function(event) {
+            updateStatus('Disconnected from server');
+            appendDebug(`WebSocket closed: ${event.reason}`);
         };
     </script>
 </body>
