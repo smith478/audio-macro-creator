@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from RealtimeSTT import AudioToTextRecorder
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from macro_processor import process_text, MACROS
@@ -17,9 +17,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 recorder = AudioToTextRecorder(
     model="tiny",
     language="en",
-    spinner=False,
-    # energy_threshold=1000,  # Adjust this value to change sensitivity
-    # pause_threshold=0.8,    # Adjust this value to change the pause detection
+    spinner=False
 )
 
 @app.websocket("/ws")
@@ -55,9 +53,14 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Check for new transcriptions
                 transcribed_text = recorder.text
+                logger.debug(f"Raw transcription output: {transcribed_text}")
                 if transcribed_text and isinstance(transcribed_text, str):
                     logger.info(f"Transcribed text: {transcribed_text}")
-                    processed_text = process_text(transcribed_text, MACROS)
+                    try:
+                        processed_text = process_text(transcribed_text, MACROS)
+                        logger.info(f"Processed text: {processed_text}")
+                    except Exception as e:
+                        logger.error(f"Error in processing text: {e}", exc_info=True)
                     logger.info(f"Processed text: {processed_text}")
                     await websocket.send_json({"text": processed_text})
                     recorder.clear()  # Clear the transcription buffer
@@ -65,12 +68,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     logger.debug(f"No transcription available or invalid type: {type(transcribed_text)}")
             
             await asyncio.sleep(0.1)  # Small delay to prevent busy-waiting
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
     except Exception as e:
         logger.error(f"Error in WebSocket: {e}", exc_info=True)
     finally:
         if recording:
             recorder.stop()
-        await websocket.close()
         logger.info("WebSocket connection closed")
 
 if __name__ == "__main__":

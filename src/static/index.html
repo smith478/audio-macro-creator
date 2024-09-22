@@ -26,59 +26,64 @@
 
         function updateStatus(message) {
             document.getElementById('status').innerText = message;
-            console.log('Status:', message);
+            console.log('Status:', message);  // Extra console log for status messages
         }
 
         function appendOutput(message) {
             document.getElementById('output').innerHTML += message + '<br>';
-            console.log('Output:', message);
+            console.log('Output:', message);  // Extra console log for output
         }
 
         function appendDebug(message) {
             const debugElement = document.getElementById('debug');
             debugElement.innerText += message + '\n';
             debugElement.scrollTop = debugElement.scrollHeight;
-            console.log('Debug:', message);
+            console.log('Debug:', message);  // Extra console log for debugging
         }
 
         function startRecording() {
             if (!isRecording) {
-                socket.send(JSON.stringify({action: 'start'}));
+                socket.send(JSON.stringify({ action: 'start' }));
                 isRecording = true;
                 document.getElementById('startButton').disabled = true;
                 document.getElementById('stopButton').disabled = false;
                 updateStatus('Recording started');
+                appendDebug('Recording started: sent action start to WebSocket');
             }
         }
 
         function stopRecording() {
             if (isRecording) {
-                socket.send(JSON.stringify({action: 'stop'}));
+                socket.send(JSON.stringify({ action: 'stop' }));
                 isRecording = false;
                 document.getElementById('startButton').disabled = false;
                 document.getElementById('stopButton').disabled = true;
                 updateStatus('Recording stopped');
+                appendDebug('Recording stopped: sent action stop to WebSocket');
             }
         }
 
         socket.onopen = function(event) {
             updateStatus('Connected to server');
+            appendDebug('WebSocket connection established');
         };
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            console.log('Received data:', data);
+            console.log('Received data:', data);  // Console log for received data
+
             if (data.status) {
                 updateStatus(data.status);
             }
             if (data.text) {
-                appendOutput(data.text);
+                appendOutput(data.text);  // Append received transcription text to the output
             }
-            appendDebug(JSON.stringify(data, null, 2));
+
+            appendDebug(`Received from WebSocket: ${JSON.stringify(data, null, 2)}`);
         };
 
         socket.onerror = function(error) {
-            console.error(`WebSocket Error: ${error}`);
+            console.error(`WebSocket Error: ${error}`);  // Extra logging for WebSocket errors
             updateStatus('WebSocket Error');
             appendDebug(`WebSocket Error: ${error}`);
         };
