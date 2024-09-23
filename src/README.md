@@ -30,6 +30,8 @@ Available models can be found in the documentation for `WhisperModel` in `faster
 - distil-large-v2
 - distil-large-v3
 
+The `distil-medium.en` works well on a mac book with a little bit of latency.
+
 ## Running the app
 1. Navigate to `src/` which contains `app.py`.
 2. Run the FastAPI application using uvicorn:

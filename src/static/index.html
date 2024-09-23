@@ -5,18 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Macro App</title>
     <style>
-        #debug { font-family: monospace; white-space: pre; max-height: 300px; overflow-y: auto; }
         #transcriptionBox { width: 100%; height: 150px; margin-bottom: 10px; }
+        #macroForm { margin-bottom: 20px; }
+        #macroForm input, #macroForm button { margin-right: 10px; }
     </style>
 </head>
 <body>
     <h1>Audio Macro App</h1>
     <button id="startButton">Start Recording</button>
     <button id="stopButton" disabled>Stop Recording</button>
+    <button id="clearButton">Clear Text</button>
+    <button id="saveReportButton">Save Report</button>
     <div id="status"></div>
     <textarea id="transcriptionBox" placeholder="Transcription will appear here..."></textarea>
-    <h3>Debug Messages:</h3>
-    <div id="debug"></div>
+
+    <h3>Add New Macro</h3>
+    <div id="macroForm">
+        <input type="text" id="macroName" placeholder="Macro Name">
+        <input type="text" id="macroText" placeholder="Macro Text">
+        <button id="addMacroButton">Add Macro</button>
+    </div>
 
     <script>
         const socket = new WebSocket('ws://localhost:8000/ws');
@@ -24,6 +32,9 @@
 
         document.getElementById('startButton').onclick = startRecording;
         document.getElementById('stopButton').onclick = stopRecording;
+        document.getElementById('clearButton').onclick = clearText;
+        document.getElementById('saveReportButton').onclick = saveReport;
+        document.getElementById('addMacroButton').onclick = addMacro;
 
         function updateStatus(message) {
             document.getElementById('status').innerText = message;
@@ -34,13 +45,6 @@
             document.getElementById('transcriptionBox').value = text;
         }
 
-        function appendDebug(message) {
-            const debugElement = document.getElementById('debug');
-            debugElement.innerText += message + '\n';
-            debugElement.scrollTop = debugElement.scrollHeight;
-            console.log('Debug:', message);
-        }
-
         function startRecording() {
             if (!isRecording) {
                 socket.send(JSON.stringify({ action: 'start' }));
@@ -48,7 +52,6 @@
                 document.getElementById('startButton').disabled = true;
                 document.getElementById('stopButton').disabled = false;
                 updateStatus('Recording started');
-                appendDebug('Recording started: sent action start to WebSocket');
             }
         }
 
@@ -59,13 +62,37 @@
                 document.getElementById('startButton').disabled = false;
                 document.getElementById('stopButton').disabled = true;
                 updateStatus('Recording stopped');
-                appendDebug('Recording stopped: sent action stop to WebSocket');
+            }
+        }
+
+        function clearText() {
+            document.getElementById('transcriptionBox').value = '';
+            updateStatus('Text cleared');
+        }
+
+        function saveReport() {
+            const text = document.getElementById('transcriptionBox').value;
+            if (text.trim() === '') {
+                updateStatus('No text to save');
+                return;
+            }
+            socket.send(JSON.stringify({ action: 'save_report', text: text }));
+        }
+
+        function addMacro() {
+            const macroName = document.getElementById('macroName').value;
+            const macroText = document.getElementById('macroText').value;
+            if (macroName && macroText) {
+                socket.send(JSON.stringify({ action: 'add_macro', name: macroName, text: macroText }));
+                document.getElementById('macroName').value = '';
+                document.getElementById('macroText').value = '';
+            } else {
+                updateStatus('Please enter both macro name and text');
             }
         }
 
         socket.onopen = function(event) {
             updateStatus('Connected to server');
-            appendDebug('WebSocket connection established');
         };
 
         socket.onmessage = function(event) {
@@ -78,19 +105,15 @@
             if (data.text && data.action === 'update') {
                 updateTranscription(data.text);
             }
-
-            appendDebug(`Received from WebSocket: ${JSON.stringify(data, null, 2)}`);
         };
 
         socket.onerror = function(error) {
             console.error(`WebSocket Error: ${error}`);
             updateStatus('WebSocket Error');
-            appendDebug(`WebSocket Error: ${error}`);
         };
 
         socket.onclose = function(event) {
             updateStatus('Disconnected from server');
-            appendDebug(`WebSocket closed: ${event.reason}`);
         };
     </script>
 </body>

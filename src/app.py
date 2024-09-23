@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+import uuid
+from datetime import datetime
 from RealtimeSTT import AudioToTextRecorder
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +25,7 @@ def on_transcription(text):
 
 # Initialize AudioToTextRecorder with more parameters
 recorder = AudioToTextRecorder(
-    model="tiny",
+    model="distil-medium.en",
     language="en",
     spinner=False,
     enable_realtime_transcription=True,
@@ -36,6 +38,19 @@ recorder = AudioToTextRecorder(
     realtime_processing_pause=0.01
 )
 
+def save_report(text):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_id = str(uuid.uuid4())
+    filename = f"report_{timestamp}_{report_id}.json"
+    with open(filename, 'w') as f:
+        json.dump({"timestamp": timestamp, "id": report_id, "text": text}, f)
+    return filename
+
+def add_macro(name, text):
+    MACROS[name] = text
+    with open('macros.json', 'w') as f:
+        json.dump(MACROS, f)
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -46,23 +61,31 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=0.5)
-                action = json.loads(data).get('action')
+                action = json.loads(data)
                 logger.info(f"Received action: {action}")
 
-                if action == 'start':
+                if action['action'] == 'start':
                     logger.debug("About to start recorder")
                     recorder.start()
                     logger.debug(f"Recorder started, is_recording: {recorder.is_recording}")
                     recording = True
                     await websocket.send_json({"status": "Recording started"})
                     logger.info("Recording started")
-                elif action == 'stop':
+                elif action['action'] == 'stop':
                     logger.debug("About to stop recorder")
                     recorder.stop()
                     logger.debug(f"Recorder stopped, is_recording: {recorder.is_recording}")
                     recording = False
                     await websocket.send_json({"status": "Recording stopped"})
                     logger.info("Recording stopped")
+                elif action['action'] == 'save_report':
+                    filename = save_report(action['text'])
+                    await websocket.send_json({"status": f"Report saved as {filename}"})
+                    logger.info(f"Report saved as {filename}")
+                elif action['action'] == 'add_macro':
+                    add_macro(action['name'], action['text'])
+                    await websocket.send_json({"status": f"Macro '{action['name']}' added"})
+                    logger.info(f"Macro '{action['name']}' added")
             except asyncio.TimeoutError:
                 pass  # No message received, continue to check status
 
