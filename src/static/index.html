@@ -6,6 +6,7 @@
     <title>Audio Macro App</title>
     <style>
         #debug { font-family: monospace; white-space: pre; max-height: 300px; overflow-y: auto; }
+        #transcriptionBox { width: 100%; height: 150px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -13,7 +14,7 @@
     <button id="startButton">Start Recording</button>
     <button id="stopButton" disabled>Stop Recording</button>
     <div id="status"></div>
-    <div id="output"></div>
+    <textarea id="transcriptionBox" placeholder="Transcription will appear here..."></textarea>
     <h3>Debug Messages:</h3>
     <div id="debug"></div>
 
@@ -26,19 +27,18 @@
 
         function updateStatus(message) {
             document.getElementById('status').innerText = message;
-            console.log('Status:', message);  // Extra console log for status messages
+            console.log('Status:', message);
         }
 
-        function appendOutput(message) {
-            document.getElementById('output').innerHTML += message + '<br>';
-            console.log('Output:', message);  // Extra console log for output
+        function updateTranscription(text) {
+            document.getElementById('transcriptionBox').value = text;
         }
 
         function appendDebug(message) {
             const debugElement = document.getElementById('debug');
             debugElement.innerText += message + '\n';
             debugElement.scrollTop = debugElement.scrollHeight;
-            console.log('Debug:', message);  // Extra console log for debugging
+            console.log('Debug:', message);
         }
 
         function startRecording() {
@@ -70,20 +70,20 @@
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            console.log('Received data:', data);  // Console log for received data
+            console.log('Received data:', data);
 
             if (data.status) {
                 updateStatus(data.status);
             }
-            if (data.text) {
-                appendOutput(data.text);  // Append received transcription text to the output
+            if (data.text && data.action === 'update') {
+                updateTranscription(data.text);
             }
 
             appendDebug(`Received from WebSocket: ${JSON.stringify(data, null, 2)}`);
         };
 
         socket.onerror = function(error) {
-            console.error(`WebSocket Error: ${error}`);  // Extra logging for WebSocket errors
+            console.error(`WebSocket Error: ${error}`);
             updateStatus('WebSocket Error');
             appendDebug(`WebSocket Error: ${error}`);
         };

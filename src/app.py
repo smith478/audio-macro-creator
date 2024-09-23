@@ -14,7 +14,7 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Shared variable to store the latest transcription
-latest_transcription = None
+latest_transcription = ""
 
 def on_transcription(text):
     global latest_transcription
@@ -41,6 +41,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     logger.info("WebSocket connection established")
     recording = False
+    last_sent_transcription = ""
     try:
         while True:
             try:
@@ -73,15 +74,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Check for new transcriptions
                 global latest_transcription
-                if latest_transcription:
+                if latest_transcription and latest_transcription != last_sent_transcription:
                     logger.info(f"New transcription available: {latest_transcription}")
                     try:
                         processed_text = process_text(latest_transcription, MACROS)
                         logger.info(f"Processed text: {processed_text}")
-                        await websocket.send_json({"text": processed_text})
+                        await websocket.send_json({"text": processed_text, "action": "update"})
+                        last_sent_transcription = latest_transcription
                     except Exception as e:
                         logger.error(f"Error in processing text: {e}", exc_info=True)
-                    latest_transcription = None  # Reset after processing
                 else:
                     logger.debug("No new transcription available")
             
