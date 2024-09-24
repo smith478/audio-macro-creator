@@ -46,8 +46,16 @@ def save_report(text):
         json.dump({"timestamp": timestamp, "id": report_id, "text": text}, f)
     return filename
 
-def add_macro(name, text):
+def add_or_update_macro(name, text):
     MACROS[name] = text
+    save_macros()
+
+def delete_macro(name):
+    if name in MACROS:
+        del MACROS[name]
+        save_macros()
+
+def save_macros():
     with open('macros.json', 'w') as f:
         json.dump(MACROS, f)
 
@@ -83,9 +91,16 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json({"status": f"Report saved as {filename}"})
                     logger.info(f"Report saved as {filename}")
                 elif action['action'] == 'add_macro':
-                    add_macro(action['name'], action['text'])
-                    await websocket.send_json({"status": f"Macro '{action['name']}' added"})
-                    logger.info(f"Macro '{action['name']}' added")
+                    add_or_update_macro(action['name'], action['text'])
+                    await websocket.send_json({"status": f"Macro '{action['name']}' added/updated", "macros": MACROS})
+                    logger.info(f"Macro '{action['name']}' added/updated")
+                elif action['action'] == 'delete_macro':
+                    delete_macro(action['name'])
+                    await websocket.send_json({"status": f"Macro '{action['name']}' deleted", "macros": MACROS})
+                    logger.info(f"Macro '{action['name']}' deleted")
+                elif action['action'] == 'get_macros':
+                    await websocket.send_json({"macros": MACROS})
+                    logger.info("Sent macros to client")
             except asyncio.TimeoutError:
                 pass  # No message received, continue to check status
 

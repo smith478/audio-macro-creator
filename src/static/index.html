@@ -6,8 +6,11 @@
     <title>Audio Macro App</title>
     <style>
         #transcriptionBox { width: 100%; height: 150px; margin-bottom: 10px; }
-        #macroForm { margin-bottom: 20px; }
+        #macroForm, #macroList { margin-bottom: 20px; }
         #macroForm input, #macroForm button { margin-right: 10px; }
+        #macroList { max-height: 300px; overflow-y: auto; }
+        .macro-item { margin-bottom: 10px; }
+        .macro-item input { margin-right: 10px; }
     </style>
 </head>
 <body>
@@ -19,12 +22,15 @@
     <div id="status"></div>
     <textarea id="transcriptionBox" placeholder="Transcription will appear here..."></textarea>
 
-    <h3>Add New Macro</h3>
+    <h3>Manage Macros</h3>
     <div id="macroForm">
         <input type="text" id="macroName" placeholder="Macro Name">
         <input type="text" id="macroText" placeholder="Macro Text">
-        <button id="addMacroButton">Add Macro</button>
+        <button id="addMacroButton">Add/Update Macro</button>
     </div>
+
+    <h3>Existing Macros</h3>
+    <div id="macroList"></div>
 
     <script>
         const socket = new WebSocket('ws://localhost:8000/ws');
@@ -34,7 +40,7 @@
         document.getElementById('stopButton').onclick = stopRecording;
         document.getElementById('clearButton').onclick = clearText;
         document.getElementById('saveReportButton').onclick = saveReport;
-        document.getElementById('addMacroButton').onclick = addMacro;
+        document.getElementById('addMacroButton').onclick = addOrUpdateMacro;
 
         function updateStatus(message) {
             document.getElementById('status').innerText = message;
@@ -79,7 +85,7 @@
             socket.send(JSON.stringify({ action: 'save_report', text: text }));
         }
 
-        function addMacro() {
+        function addOrUpdateMacro() {
             const macroName = document.getElementById('macroName').value;
             const macroText = document.getElementById('macroText').value;
             if (macroName && macroText) {
@@ -91,8 +97,33 @@
             }
         }
 
+        function deleteMacro(macroName) {
+            socket.send(JSON.stringify({ action: 'delete_macro', name: macroName }));
+        }
+
+        function editMacro(macroName, macroText) {
+            document.getElementById('macroName').value = macroName;
+            document.getElementById('macroText').value = macroText;
+        }
+
+        function updateMacroList(macros) {
+            const macroList = document.getElementById('macroList');
+            macroList.innerHTML = '';
+            for (const [name, text] of Object.entries(macros)) {
+                const macroItem = document.createElement('div');
+                macroItem.className = 'macro-item';
+                macroItem.innerHTML = `
+                    <strong>${name}:</strong> ${text}
+                    <button onclick="editMacro('${name}', '${text}')">Edit</button>
+                    <button onclick="deleteMacro('${name}')">Delete</button>
+                `;
+                macroList.appendChild(macroItem);
+            }
+        }
+
         socket.onopen = function(event) {
             updateStatus('Connected to server');
+            socket.send(JSON.stringify({ action: 'get_macros' }));
         };
 
         socket.onmessage = function(event) {
@@ -104,6 +135,9 @@
             }
             if (data.text && data.action === 'update') {
                 updateTranscription(data.text);
+            }
+            if (data.macros) {
+                updateMacroList(data.macros);
             }
         };
 
