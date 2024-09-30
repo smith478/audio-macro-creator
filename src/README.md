@@ -32,7 +32,7 @@ Available models can be found in the documentation for `WhisperModel` in `faster
 
 The `distil-medium.en` works well on a mac book with a little bit of latency.
 
-## Running the app
+## Running the app locally
 1. Navigate to `src/` which contains `app.py`.
 2. Run the FastAPI application using uvicorn:
 ```bash
@@ -44,3 +44,27 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --log-level debug
 ```
 3. Open a web browser
 4. Go to: `http://localhost:8000/static/index.html`
+
+## Running the app remotely from a docker container
+In the container we also need to run the following:
+```bash
+apt-get update
+apt-get install -y portaudio19-dev python3-dev
+pip install torch==2.3.1+cu121 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+pip install uvicorn RealtimeSTT fastapi
+```
+
+Similar to above
+
+1. Navigate to `src/` which contains `app.py`.
+2. Run the FastAPI application using uvicorn:
+```bash
+uvicorn app_gpu:app --host 0.0.0.0 --port 8000
+```
+Or for debugging:
+```bash
+uvicorn app_gpu:app --host 0.0.0.0 --port 8000 --log-level debug
+```
+
+## TODO
+- Get `app_gpu.py` working properly
