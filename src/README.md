@@ -46,6 +46,21 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --log-level debug
 4. Go to: `http://localhost:8000/static/index.html`
 
 ## Running the app remotely from a docker container
+To run the application remotely from docker, we will need to set up HTTPS for the FastAPI application to capture audio through the local machine. 
+First, we'll need to generate a self-signed SSL certificate with `generate_ssl_cert.sh` 
+Next, make it executable with `chmod +x generate_ssl_cert.sh`, then run it with `./generate_ssl_cert.sh`. Follow the prompts to generate the self-signed certificate.
+
+We also need to modify the Docker run command to copy the SSL certificate files into the container and expose port 443 (the standard HTTPS port):
+```bash
+sudo docker run --gpus all --name audio-macro-creator -it --rm \
+  -p 8000:8000 -p 443:443 \
+  -v $(pwd):/audio-macro-creator \
+  -v $(pwd)/server.key:/audio-macro-creator/server.key \
+  -v $(pwd)/server.crt:/audio-macro-creator/server.crt \
+  --entrypoint /bin/bash -w /audio-macro-creator \
+  audio-macro-creator:latest
+```
+
 In the container we also need to run the following:
 ```bash
 apt-get update
