@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import torch
 import uuid
 from datetime import datetime
 from RealtimeSTT import AudioToTextRecorder
@@ -23,9 +24,13 @@ def on_transcription(text):
     logger.info(f"Transcribed text: {text}")
     latest_transcription = text
 
+# Check if GPU is available and select the model accordingly
+model_name = "distil-large-v3" if torch.cuda.is_available() else "distil-medium.en"
+logger.info(f"Using model: {model_name}")
+
 # Initialize AudioToTextRecorder with more parameters
 recorder = AudioToTextRecorder(
-    model="distil-medium.en",
+    model=model_name,
     language="en",
     spinner=False,
     enable_realtime_transcription=True,
