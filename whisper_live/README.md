@@ -2,14 +2,22 @@ This application is built using [WhisperLive](https://github.com/collabora/Whisp
 
 ## Running locally (m1 macbook)
 
-The easiest way to run and test WhisperLive is using docker
+The easiest way to run and test WhisperLive is using docker. We first need to build the docker image using
 
 ```bash
-docker run -it -p 9090:9090 ghcr.io/collabora/whisperlive-cpu:latest
+docker build -t whisperlive-cpu:latest -f Dockerfile.cpu .
 ```
-or 
+Next run the container using
 ```bash
-docker run --platform linux/arm64 -it -p 9090:9090 ghcr.io/collabora/whisperlive-cpu:latest
+docker run -it -p 9090:9090 whisperlive-cpu:latest
+```
+or
+```bash
+docker build --platform linux/arm64 -t whisperlive-cpu:latest -f Dockerfile.cpu .
+```
+and 
+```bash
+docker run --platform linux/arm64 -it -p 9090:9090 whisperlive-cpu:latest
 ```
 
 ## Running remotely from linux desktop
