@@ -1,0 +1,1 @@
+This application is built using [WhisperLive](https://github.com/collabora/WhisperLive).
