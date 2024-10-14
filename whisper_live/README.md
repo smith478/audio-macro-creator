@@ -11,7 +11,7 @@ Next run the container using
 ```bash
 docker run -it -p 9090:9090 whisperlive-cpu:latest
 ```
-or
+**or** on Apple silicon:
 ```bash
 docker build --platform linux/arm64 -t whisperlive-cpu:latest -f Dockerfile.cpu .
 ```
