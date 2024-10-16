@@ -1,0 +1,13 @@
+faster-whisper==1.0.1
+websockets
+onnxruntime==1.16.0
+numba
+kaldialign
+soundfile
+ffmpeg-python
+scipy
+jiwer
+evaluate
+numpy<2
+tiktoken==0.3.3
+openai-whisper

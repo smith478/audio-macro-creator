@@ -1,0 +1,32 @@
+FROM --platform=linux/arm64 python:3.10-slim-bookworm
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG MODEL_NAME=Systran/faster-whisper-small
+
+# install lib required for pyaudio
+RUN apt-get update && apt-get install -y portaudio19-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# update pip to support for whl.metadata -> less downloading
+RUN pip install --no-cache-dir -U "pip>=24"
+
+# create a working directory
+WORKDIR /app
+
+# install pytorch for ARM
+RUN pip install --no-cache-dir torch torchvision torchaudio
+
+# install the requirements for running the whisper-live server
+COPY ../requirements/server.txt .
+RUN pip install --no-cache-dir -r server.txt && rm server.txt
+
+# Install huggingface_hub for model downloading
+RUN pip install --no-cache-dir huggingface_hub
+
+COPY ../whisper_live ./whisper_live
+COPY ../run_server.py .
+COPY ../download_model.py .
+
+# Download the model
+RUN python download_model.py ${MODEL_NAME} /app/model
+
+CMD ["python", "run_server.py", "--backend", "faster_whisper", "--faster_whisper_custom_model_path", "/app/model"]

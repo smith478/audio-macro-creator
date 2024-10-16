@@ -1,0 +1,27 @@
+FROM python:3.10-bookworm
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# install lib required for pyaudio
+RUN apt-get update && apt-get install -y portaudio19-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# update pip to support for whl.metadata -> less downloading
+RUN pip install --no-cache-dir -U "pip>=24"
+
+# create a working directory
+WORKDIR /app
+
+# install the requirements for running the whisper-live server
+COPY requirements/server.txt .
+RUN pip install --no-cache-dir -r server.txt && rm server.txt
+
+# Install CUDA libraries
+RUN pip install --no-cache-dir torch torchvision torchaudio
+
+# make the paths of the nvidia libs installed as wheels visible
+ENV LD_LIBRARY_PATH="/usr/local/lib/python3.10/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.10/site-packages/nvidia/cudnn/lib"
+
+COPY whisper_live ./whisper_live
+COPY run_server.py .
+
+CMD ["python", "run_server.py", "--backend", "faster_whisper", "--faster_whisper_custom_model_path", "deepgram/faster-whisper-large-v3-turbo-ct2"]
