@@ -23,8 +23,17 @@ Run the Docker container, mounting the local model directory.
 The models directory will be ignored by git due to the .gitignore file.
 For the GPU version, you can make similar changes, just replacing Systran/faster-whisper-small with Systran/faster-whisper-large-v3 in the Dockerfile and run script.
 
-## Run the docker container
+## Install requirements for the client
 
 ```bash
-docker run -it -p 9090:9090 whisperlive-m1
+conda create -n macro_client python=3.10
+conda activate macro_client
+cd requirements
+pip install -r client.txt
+cd ..
+```
+
+With this environment active the client can now be run:
+```bash
+python run_microphone_client.py
 ```
