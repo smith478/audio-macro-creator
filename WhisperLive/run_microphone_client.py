@@ -11,13 +11,14 @@ client = TranscriptionClient(
     model="small",
     use_vad=True,
     save_output_recording=True,
-    output_recording_filename="./output_recording.wav"
+    output_recording_filename="./output_recording.wav",
+    callback=print_callback
 )
 
 print("Starting transcription from microphone. Speak into your microphone.")
 print("Press Ctrl+C to stop.")
 
 try:
-    client(callback=print_callback)
+    client()
 except KeyboardInterrupt:
     print("\nTranscription stopped.")

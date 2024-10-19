@@ -681,8 +681,19 @@ class TranscriptionClient(TranscriptionTeeClient):
         output_recording_filename="./output_recording.wav",
         output_transcription_path="./output.srt",
         log_transcription=True,
+        callback=None
     ):
-        self.client = Client(host, port, lang, translate, model, srt_file_path=output_transcription_path, use_vad=use_vad, log_transcription=log_transcription)
+        self.callback = callback
+        self.client = Client(
+            host, 
+            port, 
+            lang, 
+            translate, 
+            model, 
+            srt_file_path=output_transcription_path, 
+            use_vad=use_vad, 
+            log_transcription=log_transcription
+        )
         if save_output_recording and not output_recording_filename.endswith(".wav"):
             raise ValueError(f"Please provide a valid `output_recording_filename`: {output_recording_filename}")
         if not output_transcription_path.endswith(".srt"):
@@ -693,3 +704,16 @@ class TranscriptionClient(TranscriptionTeeClient):
             save_output_recording=save_output_recording,
             output_recording_filename=output_recording_filename
         )
+
+    def __call__(self, audio=None, rtsp_url=None, hls_url=None, save_file=None):
+        if self.callback:
+            original_on_message = self.client.on_message
+            def new_on_message(ws, message):
+                original_on_message(ws, message)
+                message_data = json.loads(message)
+                if "segments" in message_data:
+                    for segment in message_data["segments"]:
+                        self.callback(segment["text"])
+            self.client.on_message = new_on_message
+
+        super().__call__(audio, rtsp_url, hls_url, save_file)

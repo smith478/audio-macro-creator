@@ -33,7 +33,7 @@ pip install -r client.txt
 cd ..
 ```
 
-With this environment active the client can now be run:
+With this environment active the client can now be run. Be sure that the server (above) is running. 
 ```bash
 python run_microphone_client.py
 ```
