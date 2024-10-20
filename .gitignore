@@ -1,5 +1,6 @@
 src/external/RealtimeSTT/
 WhisperLive/models
+*output.srt
 
 *.crt
 *.cert
