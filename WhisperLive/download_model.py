@@ -4,7 +4,7 @@ from huggingface_hub import snapshot_download
 
 def download_model(model_name, output_dir):
     print(f"Downloading model {model_name} to {output_dir}")
-    snapshot_download(repo_id=model_name, local_dir=output_dir, ignore_patterns=["*.bin", "*.onnx"])
+    snapshot_download(repo_id=model_name, local_dir=output_dir)
     print("Download complete")
 
 if __name__ == "__main__":
