@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Audio Transcription</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #transcription { height: 300px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 16px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Real-time Audio Transcription</h1>
+    <div id="transcription"></div>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn">Stop Recording</button>
+
+    <script>
+        const transcriptionDiv = document.getElementById('transcription');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let socket;
+
+        function connectWebSocket() {
+            socket = new WebSocket('ws://localhost:8000/ws');
+            
+            socket.onopen = function(e) {
+                console.log("WebSocket connection established");
+            };
+
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.action === 'update') {
+                    transcriptionDiv.innerHTML = data.text;
+                } else {
+                    console.log(data.status);
+                }
+            };
+
+            socket.onclose = function(event) {
+                console.log("WebSocket connection closed");
+            };
+
+            socket.onerror = function(error) {
+                console.error(`WebSocket error: ${error}`);
+            };
+        }
+
+        startBtn.onclick = function() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+            }
+            socket.send(JSON.stringify({action: 'start'}));
+        };
+
+        stopBtn.onclick = function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({action: 'stop'}));
+            }
+        };
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
