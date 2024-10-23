@@ -37,3 +37,10 @@ With this environment active the client can now be run. Be sure that the server 
 ```bash
 python run_microphone_client.py
 ```
+
+For a more interactive interface we can run
+```bash
+python transcription_service.py
+```
+
+After this is run, open a web browser and go to: `http://localhost:8000/static/index.html`

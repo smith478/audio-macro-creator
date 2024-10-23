@@ -2,3 +2,6 @@ PyAudio
 ffmpeg-python
 scipy
 websocket-client
+fastapi
+uvicorn
+websockets
