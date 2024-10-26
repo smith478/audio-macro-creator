@@ -74,12 +74,9 @@ Similar to above
 1. Navigate to `src/` which contains `app.py`.
 2. Run the FastAPI application using uvicorn:
 ```bash
-uvicorn app_gpu:app --host 0.0.0.0 --port 8000
+uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 Or for debugging:
 ```bash
-uvicorn app_gpu:app --host 0.0.0.0 --port 8000 --log-level debug
+uvicorn app:app --host 0.0.0.0 --port 8000 --log-level debug
 ```
-
-## TODO
-- Get `app_gpu.py` working properly
