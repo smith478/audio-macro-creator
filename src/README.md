@@ -30,7 +30,7 @@ Available models can be found in the documentation for `WhisperModel` in `faster
 - distil-large-v2
 - distil-large-v3
 
-The `distil-medium.en` works well on a mac book with a little bit of latency.
+The `distil-medium.en` works well on a mac book with a little bit of latency. Additionally, from the documentation: a path to a converted model directory, or a CTranslate2-converted Whisper model ID from the HF Hub. When a size or a model ID is configured, the converted model is downloaded from the Hugging Face Hub. One to try is: deepdml/faster-whisper-large-v3-turbo-ct2
 
 ## Running the app locally
 1. Navigate to `src/` which contains `app.py`.

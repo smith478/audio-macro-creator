@@ -25,7 +25,7 @@ def on_transcription(text):
     latest_transcription = text
 
 # Check if GPU is available and select the model accordingly
-model_name = "distil-large-v3" if torch.cuda.is_available() else "distil-medium.en"
+model_name = "distil-large-v3" if torch.cuda.is_available() else "deepdml/faster-whisper-large-v3-turbo-ct2"
 logger.info(f"Using model: {model_name}")
 
 # Initialize AudioToTextRecorder with more parameters
