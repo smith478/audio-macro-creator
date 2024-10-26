@@ -46,6 +46,13 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --log-level debug
 4. Go to: `http://localhost:8000/static/index.html`
 
 ## Running the app remotely from a docker container
+
+First run the container:
+
+```bash
+sudo docker run --gpus all --name audio-macro-creator -it --rm -p 8888:8888 -p 8501:8501 -p 8000:8000 --entrypoint /bin/bash -w /audio-macro-creator -v $(pwd):/audio-macro-creator audio-macro-creator:latest
+```
+
 To run the application remotely from docker, we will need to set up HTTPS for the FastAPI application to capture audio through the local machine. 
 First, we'll need to generate a self-signed SSL certificate with `generate_ssl_cert.sh` 
 Next, make it executable with `chmod +x generate_ssl_cert.sh`, then run it with `./generate_ssl_cert.sh`. Follow the prompts to generate the self-signed certificate.
@@ -61,6 +68,9 @@ sudo docker run --gpus all --name audio-macro-creator -it --rm \
   audio-macro-creator:latest
 ```
 
+#### TODO 
+Once this is running properly the components below will need to be installed in the container.
+
 In the container we also need to run the following:
 ```bash
 apt-get update
@@ -74,9 +84,7 @@ Similar to above
 1. Navigate to `src/` which contains `app.py`.
 2. Run the FastAPI application using uvicorn:
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
+uvicorn app:app --host 0.0.0.0 --port 8000 --ssl-keyfile=./server.key --ssl-certfile=./server.crt
 ```
-Or for debugging:
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000 --log-level debug
-```
+
+And then on the network this application can be accessed at `https://123.456.789:8000/static/index.html` (assuming the IP address is 123.456.789)

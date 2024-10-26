@@ -33,7 +33,10 @@
     <div id="macroList"></div>
 
     <script>
-        const socket = new WebSocket('ws://localhost:8000/ws');
+        // Automatically determine WebSocket connection based on current URL
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsHost = window.location.hostname + ':' + window.location.port;
+        const socket = new WebSocket(`${wsProtocol}${wsHost}/ws`);
         let isRecording = false;
 
         document.getElementById('startButton').onclick = startRecording;
