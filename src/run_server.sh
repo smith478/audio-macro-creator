@@ -10,6 +10,9 @@ fi
 
 MODE=$1
 
+# Set the deployment mode environment variable
+export DEPLOYMENT_MODE=$MODE
+
 case $MODE in
     "local")
         echo "Starting server in local mode..."
@@ -18,8 +21,8 @@ case $MODE in
     "remote")
         echo "Starting server in remote mode..."
         uvicorn app:app --host 0.0.0.0 --port 8000 \
-            --ssl-keyfile=/audio-macro-creator/server.key \
-            --ssl-certfile=/audio-macro-creator/server.crt
+            --ssl-keyfile="$PWD/server.key" \
+            --ssl-certfile="$PWD/server.crt"
         ;;
     *)
         echo "Invalid mode. Use 'local' or 'remote'"

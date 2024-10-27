@@ -38,6 +38,9 @@
         const wsHost = window.location.hostname + ':' + window.location.port;
         const socket = new WebSocket(`${wsProtocol}${wsHost}/ws`);
         let isRecording = false;
+        let mediaRecorder = null;
+        let audioContext = null;
+        let mediaStream = null;
 
         document.getElementById('startButton').onclick = startRecording;
         document.getElementById('stopButton').onclick = stopRecording;
@@ -54,24 +57,72 @@
             document.getElementById('transcriptionBox').value = text;
         }
 
-        function startRecording() {
+        async function startRecording() {
             if (!isRecording) {
-                socket.send(JSON.stringify({ action: 'start' }));
-                isRecording = true;
-                document.getElementById('startButton').disabled = true;
-                document.getElementById('stopButton').disabled = false;
-                updateStatus('Recording started');
+                try {
+                    // Request microphone access
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    // Create audio context and connect it to the RealtimeSTT processor
+                    audioContext = new AudioContext();
+                    const source = audioContext.createMediaStreamSource(mediaStream);
+                    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+                    
+                    processor.onaudioprocess = function(e) {
+                        if (isRecording) {
+                            // Get the raw audio data
+                            const inputData = e.inputBuffer.getChannelData(0);
+                            // Convert to 16-bit PCM
+                            const pcmData = convertFloatTo16BitPCM(inputData);
+                            // Send to server
+                            if (socket.readyState === WebSocket.OPEN) {
+                                socket.send(pcmData.buffer);
+                            }
+                        }
+                    };
+
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+                    
+                    socket.send(JSON.stringify({ action: 'start' }));
+                    isRecording = true;
+                    document.getElementById('startButton').disabled = true;
+                    document.getElementById('stopButton').disabled = false;
+                    updateStatus('Recording started');
+                } catch (err) {
+                    console.error('Error accessing microphone:', err);
+                    updateStatus('Error accessing microphone: ' + err.message);
+                }
             }
         }
 
         function stopRecording() {
             if (isRecording) {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+                if (audioContext) {
+                    audioContext.close();
+                }
+                mediaStream = null;
+                audioContext = null;
+                
                 socket.send(JSON.stringify({ action: 'stop' }));
                 isRecording = false;
                 document.getElementById('startButton').disabled = false;
                 document.getElementById('stopButton').disabled = true;
                 updateStatus('Recording stopped');
             }
+        }
+
+        // Helper function to convert Float32Array to Int16Array
+        function convertFloatTo16BitPCM(float32Array) {
+            const int16Array = new Int16Array(float32Array.length);
+            for (let i = 0; i < float32Array.length; i++) {
+                const s = Math.max(-1, Math.min(1, float32Array[i]));
+                int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return int16Array;
         }
 
         function clearText() {

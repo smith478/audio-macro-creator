@@ -68,23 +68,17 @@ sudo docker run --gpus all --name audio-macro-creator -it --rm \
   audio-macro-creator:latest
 ```
 
-#### TODO 
-Once this is running properly the components below will need to be installed in the container.
-
-In the container we also need to run the following:
+To run the server there are two options, one for local development and one for remote access.
 ```bash
-apt-get update
-apt-get install -y portaudio19-dev python3-dev
-pip install torch==2.3.1+cu121 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
-pip install uvicorn RealtimeSTT fastapi
+# For local development
+./run_server.sh local
+
+# For remote access
+./run_server.sh remote
 ```
 
-Similar to above
+And then on the network this application can be accessed at `https://123.456.789:8000/static/index.html` (assuming the IP address is 123.456.789).
 
-1. Navigate to `src/` which contains `app.py`.
-2. Run the FastAPI application using uvicorn:
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000 --ssl-keyfile=./server.key --ssl-certfile=./server.crt
-```
+## TODO
 
-And then on the network this application can be accessed at `https://123.456.789:8000/static/index.html` (assuming the IP address is 123.456.789)
+This is currently not working and seems worse than before. Look at old scripts and try to figure out what's going on/merge them with the ones here.
