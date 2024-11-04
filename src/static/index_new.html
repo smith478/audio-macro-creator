@@ -11,10 +11,6 @@
         #macroList { max-height: 300px; overflow-y: auto; }
         .macro-item { margin-bottom: 10px; }
         .macro-item input { margin-right: 10px; }
-        #audioStatus { color: #666; margin: 10px 0; }
-        #status { margin: 10px 0; }
-        button { padding: 5px 10px; margin: 5px; }
-        button:disabled { opacity: 0.6; }
     </style>
 </head>
 <body>
@@ -24,7 +20,6 @@
     <button id="clearButton">Clear Text</button>
     <button id="saveReportButton">Save Report</button>
     <div id="status"></div>
-    <div id="audioStatus"></div>
     <textarea id="transcriptionBox" placeholder="Transcription will appear here..."></textarea>
 
     <h3>Manage Macros</h3>
@@ -38,14 +33,15 @@
     <div id="macroList"></div>
 
     <script>
-        // Use secure WebSocket connection
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        // Automatically determine WebSocket connection based on current URL
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsHost = window.location.hostname + ':' + window.location.port;
+        const socket = new WebSocket(`${wsProtocol}${wsHost}/ws`);
         let isRecording = false;
         let mediaRecorder = null;
-        let audioChunks = [];
+        let audioContext = null;
+        let mediaStream = null;
 
-        // Button event listeners
         document.getElementById('startButton').onclick = startRecording;
         document.getElementById('stopButton').onclick = stopRecording;
         document.getElementById('clearButton').onclick = clearText;
@@ -57,11 +53,6 @@
             console.log('Status:', message);
         }
 
-        function updateAudioStatus(message) {
-            document.getElementById('audioStatus').innerText = message;
-            console.log('Audio Status:', message);
-        }
-
         function updateTranscription(text) {
             document.getElementById('transcriptionBox').value = text;
         }
@@ -69,78 +60,69 @@
         async function startRecording() {
             if (!isRecording) {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const audioContext = new AudioContext();
-                    const source = audioContext.createMediaStreamSource(stream);
+                    // Request microphone access
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    // Create audio context and connect it to the RealtimeSTT processor
+                    audioContext = new AudioContext();
+                    const source = audioContext.createMediaStreamSource(mediaStream);
                     const processor = audioContext.createScriptProcessor(4096, 1, 1);
-                    let audioData = [];
-
-                    source.connect(processor);
-                    processor.connect(audioContext.destination);
-
-                    processor.onaudioprocess = (e) => {
-                        const channelData = e.inputBuffer.getChannelData(0);
-                        audioData.push(new Float32Array(channelData));
-                    };
-
-                    mediaRecorder = {
-                        stream,
-                        audioContext,
-                        source,
-                        processor,
-                        audioData,
-                        stop: () => {
-                            processor.disconnect();
-                            source.disconnect();
-                            stream.getTracks().forEach(track => track.stop());
-                            
-                            // Concatenate all audio chunks
-                            const concatenated = new Float32Array(audioData.reduce((acc, curr) => acc + curr.length, 0));
-                            let offset = 0;
-                            audioData.forEach(chunk => {
-                                concatenated.set(chunk, offset);
-                                offset += chunk.length;
-                            });
-
+                    
+                    processor.onaudioprocess = function(e) {
+                        if (isRecording) {
+                            // Get the raw audio data
+                            const inputData = e.inputBuffer.getChannelData(0);
                             // Convert to 16-bit PCM
-                            const pcmData = new Int16Array(concatenated.length);
-                            for (let i = 0; i < concatenated.length; i++) {
-                                const s = Math.max(-1, Math.min(1, concatenated[i]));
-                                pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                            }
-
+                            const pcmData = convertFloatTo16BitPCM(inputData);
                             // Send to server
-                            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
-                            socket.send(JSON.stringify({
-                                action: 'process_audio',
-                                audio_data: base64Audio,
-                                sample_rate: audioContext.sampleRate
-                            }));
+                            if (socket.readyState === WebSocket.OPEN) {
+                                socket.send(pcmData.buffer);
+                            }
                         }
                     };
 
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+                    
+                    socket.send(JSON.stringify({ action: 'start' }));
                     isRecording = true;
                     document.getElementById('startButton').disabled = true;
                     document.getElementById('stopButton').disabled = false;
                     updateStatus('Recording started');
-                    updateAudioStatus('Microphone active');
                 } catch (err) {
                     console.error('Error accessing microphone:', err);
                     updateStatus('Error accessing microphone: ' + err.message);
-                    updateAudioStatus('Microphone access failed');
                 }
             }
         }
 
         function stopRecording() {
-            if (isRecording && mediaRecorder) {
-                mediaRecorder.stop();
+            if (isRecording) {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+                if (audioContext) {
+                    audioContext.close();
+                }
+                mediaStream = null;
+                audioContext = null;
+                
+                socket.send(JSON.stringify({ action: 'stop' }));
                 isRecording = false;
                 document.getElementById('startButton').disabled = false;
                 document.getElementById('stopButton').disabled = true;
                 updateStatus('Recording stopped');
-                updateAudioStatus('Microphone inactive');
             }
+        }
+
+        // Helper function to convert Float32Array to Int16Array
+        function convertFloatTo16BitPCM(float32Array) {
+            const int16Array = new Int16Array(float32Array.length);
+            for (let i = 0; i < float32Array.length; i++) {
+                const s = Math.max(-1, Math.min(1, float32Array[i]));
+                int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return int16Array;
         }
 
         function clearText() {
@@ -193,7 +175,6 @@
             }
         }
 
-        // WebSocket event handlers
         socket.onopen = function(event) {
             updateStatus('Connected to server');
             socket.send(JSON.stringify({ action: 'get_macros' }));
@@ -221,17 +202,6 @@
 
         socket.onclose = function(event) {
             updateStatus('Disconnected from server');
-            if (isRecording) {
-                stopRecording();
-            }
-        };
-
-        // Handle page unload
-        window.onbeforeunload = function() {
-            if (isRecording) {
-                stopRecording();
-            }
-            socket.close();
         };
     </script>
 </body>

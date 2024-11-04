@@ -68,7 +68,7 @@ sudo docker run --gpus all --name audio-macro-creator -it --rm \
   audio-macro-creator:latest
 ```
 
-To run the server there are two options, one for local development and one for remote access.
+To run the server there are two options, one for local development and one for remote access. First `cd` into `src/` then run:
 ```bash
 # For local development
 ./run_server.sh local
