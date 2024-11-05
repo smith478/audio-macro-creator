@@ -15,6 +15,15 @@
         #status { margin: 10px 0; }
         button { padding: 5px 10px; margin: 5px; }
         button:disabled { opacity: 0.6; }
+        #debugLog { 
+            width: 100%; 
+            height: 100px; 
+            margin-top: 10px;
+            font-family: monospace;
+            background: #f0f0f0;
+            overflow-y: scroll;
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
@@ -26,6 +35,7 @@
     <div id="status"></div>
     <div id="audioStatus"></div>
     <textarea id="transcriptionBox" placeholder="Transcription will appear here..."></textarea>
+    <div id="debugLog"></div>
 
     <h3>Manage Macros</h3>
     <div id="macroForm">
@@ -38,12 +48,22 @@
     <div id="macroList"></div>
 
     <script>
-        // Use secure WebSocket connection
+        // Debug logging function
+        function debugLog(message) {
+            const debugArea = document.getElementById('debugLog');
+            const timestamp = new Date().toISOString();
+            debugArea.innerHTML += `${timestamp}: ${message}\n`;
+            debugArea.scrollTop = debugArea.scrollHeight;
+            console.log(`${timestamp}: ${message}`);
+        }
+
+        // WebSocket setup
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
         let isRecording = false;
-        let mediaRecorder = null;
-        let audioChunks = [];
+        let audioContext = null;
+        let workletNode = null;
+        let mediaStream = null;
 
         // Button event listeners
         document.getElementById('startButton').onclick = startRecording;
@@ -52,65 +72,68 @@
         document.getElementById('saveReportButton').onclick = saveReport;
         document.getElementById('addMacroButton').onclick = addOrUpdateMacro;
 
-        function updateStatus(message) {
-            document.getElementById('status').innerText = message;
-            console.log('Status:', message);
-        }
-
-        function updateAudioStatus(message) {
-            document.getElementById('audioStatus').innerText = message;
-            console.log('Audio Status:', message);
-        }
-
-        function updateTranscription(text) {
-            document.getElementById('transcriptionBox').value = text;
+        async function initAudioContext() {
+            if (!audioContext) {
+                try {
+                    audioContext = new AudioContext();
+                    debugLog(`AudioContext created with sample rate: ${audioContext.sampleRate}Hz`);
+                    
+                    // Fix the path to audio-processor.js
+                    const processorPath = '/static/audio-processor.js';
+                    debugLog(`Loading AudioWorklet from: ${processorPath}`);
+                    
+                    await audioContext.audioWorklet.addModule(processorPath);
+                    debugLog('AudioWorklet module loaded successfully');
+                } catch (err) {
+                    debugLog(`Error initializing AudioContext: ${err.message}`);
+                    throw new Error(`Failed to initialize audio context: ${err.message}`);
+                }
+            }
         }
 
         async function startRecording() {
             if (!isRecording) {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const audioContext = new AudioContext();
-                    const source = audioContext.createMediaStreamSource(stream);
-                    const processor = audioContext.createScriptProcessor(4096, 1, 1);
-                    let audioData = [];
+                    debugLog('Checking HTTPS status...');
+                    if (window.location.protocol !== 'https:') {
+                        throw new Error('Microphone access requires HTTPS connection');
+                    }
 
-                    source.connect(processor);
-                    processor.connect(audioContext.destination);
-
-                    processor.onaudioprocess = (e) => {
-                        const channelData = e.inputBuffer.getChannelData(0);
-                        audioData.push(new Float32Array(channelData));
+                    debugLog('Requesting microphone access...');
+                    const constraints = {
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
                     };
+                    
+                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    debugLog('Microphone access granted');
 
-                    mediaRecorder = {
-                        stream,
-                        audioContext,
-                        source,
-                        processor,
-                        audioData,
-                        stop: () => {
-                            processor.disconnect();
-                            source.disconnect();
-                            stream.getTracks().forEach(track => track.stop());
+                    await initAudioContext();
+                    
+                    const source = audioContext.createMediaStreamSource(mediaStream);
+                    workletNode = new AudioWorkletNode(audioContext, 'audio-recorder-processor');
+                    
+                    workletNode.port.onmessage = (event) => {
+                        if (event.data.type === 'buffer-update') {
+                            debugLog(`Buffered ${event.data.samplesRecorded} samples`);
+                        } else if (event.data.type === 'audio-chunk') {
+                            const audioData = event.data.audioData;
+                            debugLog(`Processing chunk of ${audioData.length} samples`);
                             
-                            // Concatenate all audio chunks
-                            const concatenated = new Float32Array(audioData.reduce((acc, curr) => acc + curr.length, 0));
-                            let offset = 0;
-                            audioData.forEach(chunk => {
-                                concatenated.set(chunk, offset);
-                                offset += chunk.length;
-                            });
-
                             // Convert to 16-bit PCM
-                            const pcmData = new Int16Array(concatenated.length);
-                            for (let i = 0; i < concatenated.length; i++) {
-                                const s = Math.max(-1, Math.min(1, concatenated[i]));
+                            const pcmData = new Int16Array(audioData.length);
+                            for (let i = 0; i < audioData.length; i++) {
+                                const s = Math.max(-1, Math.min(1, audioData[i]));
                                 pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                             }
 
                             // Send to server
                             const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
+                            debugLog(`Sending ${Math.round(base64Audio.length / 1024)}KB of audio data`);
+                            
                             socket.send(JSON.stringify({
                                 action: 'process_audio',
                                 audio_data: base64Audio,
@@ -119,42 +142,72 @@
                         }
                     };
 
+                    source.connect(workletNode);
+                    workletNode.connect(audioContext.destination);
+                    
+                    workletNode.port.postMessage({ command: 'start' });
+                    
                     isRecording = true;
                     document.getElementById('startButton').disabled = true;
                     document.getElementById('stopButton').disabled = false;
                     updateStatus('Recording started');
                     updateAudioStatus('Microphone active');
+                    debugLog('Recording started successfully');
                 } catch (err) {
+                    debugLog(`Error starting recording: ${err.message}`);
                     console.error('Error accessing microphone:', err);
-                    updateStatus('Error accessing microphone: ' + err.message);
+                    updateStatus(`Error: ${err.message}`);
                     updateAudioStatus('Microphone access failed');
+                    
+                    // Reset state
+                    if (mediaStream) {
+                        mediaStream.getTracks().forEach(track => track.stop());
+                    }
+                    document.getElementById('startButton').disabled = false;
+                    document.getElementById('stopButton').disabled = true;
+                    isRecording = false;
                 }
             }
         }
 
-        function stopRecording() {
-            if (isRecording && mediaRecorder) {
-                mediaRecorder.stop();
+        async function stopRecording() {
+            if (isRecording && workletNode) {
+                debugLog('Stopping recording...');
+                workletNode.port.postMessage({ command: 'stop' });
+                
+                // Clean up
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+                if (workletNode) {
+                    workletNode.disconnect();
+                    workletNode = null;
+                }
+                
                 isRecording = false;
                 document.getElementById('startButton').disabled = false;
                 document.getElementById('stopButton').disabled = true;
                 updateStatus('Recording stopped');
                 updateAudioStatus('Microphone inactive');
+                debugLog('Recording stopped successfully');
             }
         }
 
         function clearText() {
             document.getElementById('transcriptionBox').value = '';
             updateStatus('Text cleared');
+            debugLog('Text cleared');
         }
 
         function saveReport() {
             const text = document.getElementById('transcriptionBox').value;
             if (text.trim() === '') {
                 updateStatus('No text to save');
+                debugLog('Save report attempted with no text');
                 return;
             }
             socket.send(JSON.stringify({ action: 'save_report', text: text }));
+            debugLog('Report save requested');
         }
 
         function addOrUpdateMacro() {
@@ -164,18 +217,22 @@
                 socket.send(JSON.stringify({ action: 'add_macro', name: macroName, text: macroText }));
                 document.getElementById('macroName').value = '';
                 document.getElementById('macroText').value = '';
+                debugLog(`Macro "${macroName}" added/updated`);
             } else {
                 updateStatus('Please enter both macro name and text');
+                debugLog('Attempted to add macro with missing fields');
             }
         }
 
         function deleteMacro(macroName) {
             socket.send(JSON.stringify({ action: 'delete_macro', name: macroName }));
+            debugLog(`Macro "${macroName}" deletion requested`);
         }
 
         function editMacro(macroName, macroText) {
             document.getElementById('macroName').value = macroName;
             document.getElementById('macroText').value = macroText;
+            debugLog(`Macro "${macroName}" loaded for editing`);
         }
 
         function updateMacroList(macros) {
@@ -191,17 +248,34 @@
                 `;
                 macroList.appendChild(macroItem);
             }
+            debugLog('Macro list updated');
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').innerText = message;
+            debugLog('Status: ' + message);
+        }
+
+        function updateAudioStatus(message) {
+            document.getElementById('audioStatus').innerText = message;
+            debugLog('Audio Status: ' + message);
+        }
+
+        function updateTranscription(text) {
+            document.getElementById('transcriptionBox').value = text;
+            debugLog('Transcription updated');
         }
 
         // WebSocket event handlers
         socket.onopen = function(event) {
+            debugLog('WebSocket connected');
             updateStatus('Connected to server');
             socket.send(JSON.stringify({ action: 'get_macros' }));
         };
 
         socket.onmessage = function(event) {
             const data = JSON.parse(event.data);
-            console.log('Received data:', data);
+            debugLog(`Received WebSocket message: ${JSON.stringify(data)}`);
 
             if (data.status) {
                 updateStatus(data.status);
@@ -215,11 +289,13 @@
         };
 
         socket.onerror = function(error) {
+            debugLog(`WebSocket Error: ${error}`);
             console.error(`WebSocket Error: ${error}`);
             updateStatus('WebSocket Error');
         };
 
         socket.onclose = function(event) {
+            debugLog('WebSocket disconnected');
             updateStatus('Disconnected from server');
             if (isRecording) {
                 stopRecording();

@@ -57,6 +57,7 @@ def save_macros():
     with open('macros.json', 'w') as f:
         json.dump(MACROS, f)
 
+# Update the transcribe_audio function in your app.py:
 async def transcribe_audio(audio_data, sample_rate=16000):
     """
     Transcribe audio data using Whisper model.
@@ -77,8 +78,14 @@ async def transcribe_audio(audio_data, sample_rate=16000):
         audio_array = audio_array.astype(np.float32) / 32768.0
         
         # Transcribe
-        logger.debug("Starting transcription")
-        segments, _ = whisper.transcribe(audio_array, language="en")
+        logger.debug(f"Starting transcription of {len(audio_array)} samples")
+        segments, _ = whisper.transcribe(
+            audio_array,
+            language="en",
+            beam_size=1,  # Faster processing
+            best_of=1,    # Faster processing
+            condition_on_previous_text=True  # Better continuous transcription
+        )
         
         # Combine all segments
         text = " ".join([segment.text for segment in segments])
