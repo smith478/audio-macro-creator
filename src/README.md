@@ -68,6 +68,24 @@ sudo docker run --gpus all --name audio-macro-creator -it --rm \
   audio-macro-creator:latest
 ```
 
+Seems to be an issue with cuDNN in the docker container. We will need to fix the dockerfile. For now we can add its location to the `LD_LIBRARY_PATH` environment variable.
+```bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
+```
+
+Or use:
+```bash
+sudo docker run --gpus all --name audio-macro-creator -it --rm \
+  -p 8000:8000 -p 443:443 \
+  -v $(pwd):/audio-macro-creator \
+  -v $(pwd)/server.key:/audio-macro-creator/server.key \
+  -v $(pwd)/server.crt:/audio-macro-creator/server.crt \
+  -v /usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu \
+  -v /usr/local/cuda:/usr/local/cuda \
+  --entrypoint /bin/bash -w /audio-macro-creator \
+  audio-macro-creator:latest
+```
+
 To run the server there are two options, one for local development and one for remote access. First `cd` into `src/` then run:
 ```bash
 # For local development
